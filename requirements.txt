@@ -1,0 +1,7 @@
+﻿gradio
+groq
+pandas
+openpyxl
+matplotlib
+seaborn
+sqlalchemy

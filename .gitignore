@@ -1,0 +1,6 @@
+﻿.ipynb_checkpoints/
+plots/
+__pycache__/
+*.pyc
+.env
+.DS_Store
