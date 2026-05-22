@@ -266,15 +266,18 @@ class ModelManager:
         self.llm = ChatGoogleGenerativeAI(model=name, google_api_key=os.getenv("GOOGLE_API_KEY"),
                                           temperature=0, streaming=True)
         self.agent = create_react_agent(model=self.llm, tools=self._tools,
-                                       state_modifier=self._prompt, checkpointer=self._checkpointer)
+                                        prompt=self._prompt, checkpointer=self._checkpointer)
         self._idx = idx
         print(f"Active model: {name}")
 
-    def switch_next(self):
-        if self._idx < len(self._models) - 1:
-            self._activate(self._idx + 1)
-            return True
-        return False
+    def set_model(self, name: str):
+        if name == self.current_name:
+            return
+        try:
+            idx = self._models.index(name)
+            self._activate(idx)
+        except ValueError:
+            print(f"Unknown model: {name}")
 
     @property
     def current_name(self): return self._models[self._idx]
@@ -300,6 +303,9 @@ _INJECTION_RE = re.compile("|".join([
     r"انسَ?.{0,20}(التعليمات|السابقة|الأوامر)",
     r"أنت\s+الآن\s+مساعد\s+مختلف", r"دورك\s+الجديد",
 ]), re.IGNORECASE)
+
+class _QuotaError(Exception):
+    pass
 
 def _check_injection(text): return bool(_INJECTION_RE.search(text))
 
@@ -351,7 +357,7 @@ def _interim(cv):
             ["", "", ""], gr.update(visible=False), gr.update(visible=False), gr.update(visible=False),
             gr.update(visible=False), gr.update(visible=False), gr.update(visible=False), gr.update(visible=False))
 
-async def respond(user_msg, history, session_id):
+async def respond(user_msg, history, session_id, selected_model):
     if not user_msg.strip(): yield _interim(history); return
     if len(user_msg) > MAX_INPUT_LEN:
         msg = f"⚠️ Message too long ({len(user_msg)} chars). Max is {MAX_INPUT_LEN}."
@@ -364,6 +370,7 @@ async def respond(user_msg, history, session_id):
         msg = f"⏳ Too many requests. Please wait {wait} seconds."
         yield _interim(history + [{"role": "user", "content": user_msg}, {"role": "assistant", "content": msg}]); return
 
+    model_mgr.set_model(selected_model)
     _active_sid.set(session_id)
     _sess()["figs"].clear()
     history = history + [{"role": "user", "content": user_msg}]
@@ -386,8 +393,8 @@ async def respond(user_msg, history, session_id):
                 break
             except Exception as e:
                 err, etype = str(e), type(e).__name__
-                if ("429" in err or "RESOURCE_EXHAUSTED" in err or "quota" in err.lower()) and model_mgr.switch_next():
-                    partial = ""; retries = 0; continue
+                if "429" in err or "RESOURCE_EXHAUSTED" in err or "quota" in err.lower():
+                    raise _QuotaError(model_mgr.current_name)
                 if ("RemoteProtocolError" in etype or "Server disconnected" in err) and retries < _MAX_RETRIES:
                     retries += 1; await asyncio.sleep(2 * retries); partial = ""; continue
                 raise
@@ -413,6 +420,20 @@ async def respond(user_msg, history, session_id):
             gr.update(value=chart_paths[1], visible=chart_paths[1] is not None),
             gr.update(value=chart_paths[2], visible=chart_paths[2] is not None),
         )
+
+    except _QuotaError as qe:
+        quota_msg = (
+            f"⚠️ Quota reached for **{qe}**. "
+            f"Please select a different model from the dropdown and try again."
+        )
+        yield (
+            history + [{"role": "assistant", "content": quota_msg}],
+            gr.update(), gr.update(), gr.update(),
+            f"[{qe}] ⚠️ quota", "", gr.update(visible=False, value=""), ["", "", ""],
+            gr.update(visible=False), gr.update(visible=False), gr.update(visible=False),
+            gr.update(visible=False), gr.update(visible=False), gr.update(visible=False), gr.update(visible=False),
+        )
+
     except Exception:
         print(traceback.format_exc())
         user_err = "⚠️ An unexpected error occurred. Please try again."
@@ -422,10 +443,10 @@ async def respond(user_msg, history, session_id):
                gr.update(visible=False), gr.update(visible=False), gr.update(visible=False), gr.update(visible=False))
 
 def _use_suggestion(idx):
-    async def handler(sugs, history, session_id):
+    async def handler(sugs, history, session_id, selected_model):
         q = sugs[idx] if sugs and len(sugs) > idx else ""
         if not q: yield _interim(history); return
-        async for chunk in respond(q, history, session_id): yield chunk
+        async for chunk in respond(q, history, session_id, selected_model): yield chunk
     return handler
 
 # ── UI ────────────────────────────────────────────────────────────────────────
@@ -437,7 +458,7 @@ with gr.Blocks(title="مساعد الكتاب الإحصائي السنوي") as
 
     with gr.Row():
         with gr.Column(scale=2):
-            chatbot = gr.Chatbot(height=500, label="المحادثة", type="messages")
+            chatbot = gr.Chatbot(height=500, label="المحادثة")
             msg_box = gr.Textbox(placeholder="اكتب سؤالك هنا...", label="سؤالك", lines=2, max_lines=6)
             with gr.Row():
                 send_btn  = gr.Button("إرسال", variant="primary")
@@ -454,6 +475,12 @@ with gr.Blocks(title="مساعد الكتاب الإحصائي السنوي") as
                 dl_chart2 = gr.DownloadButton("⬇ الرسم 2 HTML", visible=False, size="sm")
                 dl_chart3 = gr.DownloadButton("⬇ الرسم 3 HTML", visible=False, size="sm")
         with gr.Column(scale=1):
+            model_dd  = gr.Dropdown(
+                choices=MODELS,
+                value=MODELS[0],
+                label="اختر النموذج | Select Model",
+                interactive=True,
+            )
             plot1     = gr.Plot(label="الرسم البياني 1")
             plot2     = gr.Plot(label="الرسم البياني 2", visible=False)
             plot3     = gr.Plot(label="الرسم البياني 3", visible=False)
@@ -471,8 +498,8 @@ with gr.Blocks(title="مساعد الكتاب الإحصائي السنوي") as
             sug1, sug2, sug3, dl_data, dl_chart1, dl_chart2, dl_chart3]
 
     demo.load(lambda: str(uuid.uuid4()), outputs=[session_id])
-    send_btn.click(respond, [msg_box, chatbot, session_id], _out)
-    msg_box.submit(respond, [msg_box, chatbot, session_id], _out)
+    send_btn.click(respond, [msg_box, chatbot, session_id, model_dd], _out)
+    msg_box.submit(respond, [msg_box, chatbot, session_id, model_dd], _out)
     clear_btn.click(
         lambda: ([], None, None, None, "", "", gr.update(visible=False, value=""), ["", "", ""],
                  gr.update(visible=False), gr.update(visible=False), gr.update(visible=False),
@@ -480,9 +507,9 @@ with gr.Blocks(title="مساعد الكتاب الإحصائي السنوي") as
                  gr.update(visible=False), str(uuid.uuid4())),
         outputs=_out + [session_id],
     )
-    sug1.click(_use_suggestion(0), [_sugs, chatbot, session_id], _out)
-    sug2.click(_use_suggestion(1), [_sugs, chatbot, session_id], _out)
-    sug3.click(_use_suggestion(2), [_sugs, chatbot, session_id], _out)
+    sug1.click(_use_suggestion(0), [_sugs, chatbot, session_id, model_dd], _out)
+    sug2.click(_use_suggestion(1), [_sugs, chatbot, session_id, model_dd], _out)
+    sug3.click(_use_suggestion(2), [_sugs, chatbot, session_id, model_dd], _out)
 
 if __name__ == "__main__":
-    demo.launch(server_name="0.0.0.0", server_port=7860)
+    demo.launch(server_name="0.0.0.0")
