@@ -222,6 +222,42 @@ Total: ~4 LLM API calls, ~3 seconds end-to-end.
 
 ---
 
+## Monitoring & Observability
+
+This project uses **LangSmith** to trace every agent run end-to-end.
+
+### What gets traced automatically
+
+| Signal | Details |
+|--------|---------|
+| LLM calls | Model used, prompt, response, token count, latency |
+| Tool calls | `find_table`, `run_sql`, `filter_data`, `create_chart` — inputs and outputs |
+| Agent steps | Full reasoning chain per question |
+| Errors | Exceptions captured with full context |
+
+### How to enable
+
+1. Create a free account at [smith.langchain.com](https://smith.langchain.com)
+2. Get your API key from Settings → API Keys
+3. Add to your `.env` (local) or Space secrets (HF):
+   ```env
+   LANGCHAIN_API_KEY=your_langsmith_key_here
+   LANGCHAIN_TRACING_V2=true
+   ```
+
+That's it — every question the agent answers will appear in your LangSmith dashboard with a full trace. No code changes needed.
+
+### What to watch in production
+
+- **Latency per tool** — if `run_sql` is slow, the query is the bottleneck
+- **Model fallbacks** — frequent fallbacks from Flash Lite → Flash means you're hitting quota
+- **Tool error rate** — repeated `find_table` misses (score < 0.65) mean a gap in data coverage
+- **Token usage** — helps forecast cost if you upgrade to a paid Gemini tier
+
+> LangSmith is optional. The agent works without it — tracing is simply skipped if the env vars are not set.
+
+---
+
 ## License
 
 This project uses data from Jordan's Department of Statistics. The statistical data belongs to the Hashemite Kingdom of Jordan. Code is MIT licensed.
