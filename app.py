@@ -68,13 +68,24 @@ def _make_embed_model():
     raise RuntimeError("No embedding model available.")
 
 def _build_table_index(embed_model):
+    import time
     conn = sqlite3.connect(DB_PATH)
     df_meta = pd.read_sql("SELECT sql_table, name_en, name_ar FROM metadata ORDER BY sql_table", conn)
     conn.close()
     texts = [f"{r.sql_table}: {r.name_en} | {r.name_ar}" for _, r in df_meta.iterrows()]
     print("Embedding table descriptions (once)...")
-    embs = embed_model.embed_documents(texts)
-    return texts, np.array(embs, dtype="float32")
+    for attempt in range(5):
+        try:
+            embs = embed_model.embed_documents(texts)
+            return texts, np.array(embs, dtype="float32")
+        except Exception as e:
+            if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e) or "quota" in str(e).lower():
+                wait = 60 * (attempt + 1)
+                print(f"Rate limit hit, retrying in {wait}s (attempt {attempt+1}/5)...")
+                time.sleep(wait)
+            else:
+                raise
+    raise RuntimeError("Embedding quota exhausted after retries.")
 
 _embed_model              = _make_embed_model()
 _table_texts, _table_embs = _build_table_index(_embed_model)
