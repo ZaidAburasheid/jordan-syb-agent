@@ -16,7 +16,7 @@ pinned: false
 An AI-powered chat agent that answers questions about Jordan's official statistics in **Arabic and English**. Ask anything — population, GDP, births, crime, education, health — and get an instant answer with interactive charts and downloadable data.
 
 [![Live Demo](https://img.shields.io/badge/🤗%20HF%20Space-Live%20Demo-blue)](https://huggingface.co/spaces/zaidmazen/jordan-syb-agent)
-![Python](https://img.shields.io/badge/Python-3.11+-blue) ![Gradio](https://img.shields.io/badge/Gradio-5.25+-orange) ![LangChain](https://img.shields.io/badge/LangChain-0.3-green) ![Gemini](https://img.shields.io/badge/Gemini-Flash-purple)
+![Python](https://img.shields.io/badge/Python-3.11+-blue) ![Gradio](https://img.shields.io/badge/Gradio-5.25+-orange) ![LangGraph](https://img.shields.io/badge/LangGraph-1.2-green) ![Gemini](https://img.shields.io/badge/Gemini-Flash-purple)
 
 ---
 
@@ -29,6 +29,7 @@ An AI-powered chat agent that answers questions about Jordan's official statisti
 - Streams the response word-by-word
 - Suggests follow-up questions after each answer
 - Lets you download results as **CSV** and charts as **HTML**
+- **Model selector** — choose which Gemini model to use from the UI; clear quota message shown when limit is reached
 
 ---
 
@@ -65,7 +66,7 @@ User question
 [Streaming response]  ←── astream_events v2, word-by-word
       │
       ▼
-[Gradio UI]  ←── chatbot + 3 charts + suggestions + downloads
+[Gradio UI]  ←── chatbot + model selector + 3 charts + suggestions + downloads
 ```
 
 ---
@@ -76,9 +77,9 @@ User question
 |-------|-----------|
 | LLM | Google Gemini (Flash / Flash Lite) via `langchain-google-genai` |
 | Embeddings | `gemini-embedding-001` |
-| Agent framework | LangChain `create_agent` + LangGraph `MemorySaver` |
+| Agent framework | LangGraph 1.2 `create_react_agent` + `MemorySaver` |
 | Database | SQLite (read-only, 53 tables) |
-| UI | Gradio 4.44+ |
+| UI | Gradio 5.25+ |
 | Charts | Plotly |
 | Observability | LangSmith |
 | Session isolation | Python `contextvars` |
@@ -90,7 +91,7 @@ User question
 ```
 ├── app.ipynb              # Main notebook (9 code cells + markdown docs)
 ├── app.py                 # Flat Python script for deployment (HF Spaces / CLI)
-├── requirements.txt       # Python dependencies
+├── requirements.txt       # Python dependencies (pinned exact versions)
 ├── data/
 │   ├── syb_database.db    # SQLite database (53 statistical tables + metadata)
 │   ├── 3/                 # Excel source files — demographics
@@ -162,19 +163,23 @@ The Gradio UI opens at `http://localhost:7860`.
 
 ---
 
-## API Limits & Capacity
+## API Limits & Model Selection
 
-The agent uses **multiple Gemini models** and auto-switches on quota errors (429):
+The agent lets the user **choose which Gemini model to use** from a dropdown in the UI. Available models:
 
 ```
-gemini-2.0-flash-lite → gemini-2.0-flash → gemini-2.5-flash → gemini-3.1-flash-lite
+gemini-3.1-flash-lite  (default — highest free quota)
+gemini-2.5-flash
+gemini-3.5-flash
+gemini-2.5-flash-lite
 ```
 
-**Free tier capacity** (approximately):
+When a model's daily quota is reached, the agent shows a clear message:
+> *"Quota reached for [model]. Please select a different model and try again."*
+
+**Free tier capacity per model** (approximately):
 - ~4 LLM calls per question
-- ~580 total daily requests across all models
-- **~23–38 users/day** unoptimized
-- **~150 users/day** with question caching enabled
+- Switch models manually when quota is exhausted
 
 For higher traffic, upgrade to Gemini Tier 1 (paid) which gives ~10,000 RPD on Flash.
 
@@ -263,9 +268,9 @@ That's it — every question the agent answers will appear in your LangSmith das
 ### What to watch in production
 
 - **Latency per tool** — if `run_sql` is slow, the query is the bottleneck
-- **Model fallbacks** — frequent fallbacks from Flash Lite → Flash means you're hitting quota
 - **Tool error rate** — repeated `find_table` misses (score < 0.65) mean a gap in data coverage
 - **Token usage** — helps forecast cost if you upgrade to a paid Gemini tier
+- **Quota errors** — users will see the quota message and can switch models themselves
 
 > LangSmith is optional. The agent works without it — tracing is simply skipped if the env vars are not set.
 
