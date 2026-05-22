@@ -251,7 +251,7 @@ Always: fig.update_layout(template="syb", height=440, title="...")
 """
 
 # ── Model manager ─────────────────────────────────────────────────────────────
-MODELS = ["gemini-2.0-flash-lite", "gemini-2.0-flash", "gemini-2.5-flash", "gemini-3.1-flash-lite"]
+MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-flash-8b"]
 memory = MemorySaver()
 
 class ModelManager:
