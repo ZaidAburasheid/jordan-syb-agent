@@ -264,8 +264,7 @@ class ModelManager:
     def _activate(self, idx):
         name = self._models[idx]
         self.llm = ChatGoogleGenerativeAI(model=name, google_api_key=os.getenv("GOOGLE_API_KEY"),
-                                          temperature=0, streaming=True,
-                                          model_kwargs={"generation_config": {"thinking_config": {"thinking_mode": "DISABLED"}}})
+                                          temperature=0, streaming=True)
         self.agent = create_react_agent(model=self.llm, tools=self._tools,
                                        state_modifier=self._prompt, checkpointer=self._checkpointer)
         self._idx = idx
