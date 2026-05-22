@@ -437,7 +437,7 @@ with gr.Blocks(title="مساعد الكتاب الإحصائي السنوي") as
 
     with gr.Row():
         with gr.Column(scale=2):
-            chatbot = gr.Chatbot(height=500, label="المحادثة")
+            chatbot = gr.Chatbot(height=500, label="المحادثة", type="messages")
             msg_box = gr.Textbox(placeholder="اكتب سؤالك هنا...", label="سؤالك", lines=2, max_lines=6)
             with gr.Row():
                 send_btn  = gr.Button("إرسال", variant="primary")
