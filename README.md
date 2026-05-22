@@ -15,7 +15,8 @@ pinned: false
 
 An AI-powered chat agent that answers questions about Jordan's official statistics in **Arabic and English**. Ask anything — population, GDP, births, crime, education, health — and get an instant answer with interactive charts and downloadable data.
 
-![Python](https://img.shields.io/badge/Python-3.10+-blue) ![Gradio](https://img.shields.io/badge/Gradio-4.44+-orange) ![LangChain](https://img.shields.io/badge/LangChain-latest-green) ![Gemini](https://img.shields.io/badge/Gemini-Flash-purple)
+[![Live Demo](https://img.shields.io/badge/🤗%20HF%20Space-Live%20Demo-blue)](https://huggingface.co/spaces/zaidmazen/jordan-syb-agent)
+![Python](https://img.shields.io/badge/Python-3.11+-blue) ![Gradio](https://img.shields.io/badge/Gradio-5.25+-orange) ![LangChain](https://img.shields.io/badge/LangChain-0.3-green) ![Gemini](https://img.shields.io/badge/Gemini-Flash-purple)
 
 ---
 
