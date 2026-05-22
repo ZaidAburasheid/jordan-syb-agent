@@ -15,7 +15,7 @@ import plotly.graph_objects as go
 import plotly.io as pio
 import gradio as gr
 
-from langchain.agents import create_agent
+from langgraph.prebuilt import create_react_agent
 from langchain_core.tools import tool
 from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
 from langgraph.checkpoint.memory import MemorySaver
@@ -254,8 +254,8 @@ class ModelManager:
         name = self._models[idx]
         self.llm = ChatGoogleGenerativeAI(model=name, google_api_key=os.getenv("GOOGLE_API_KEY"),
                                           temperature=0, streaming=True)
-        self.agent = create_agent(model=self.llm, tools=self._tools,
-                                  system_prompt=self._prompt, checkpointer=self._checkpointer)
+        self.agent = create_react_agent(model=self.llm, tools=self._tools,
+                                       state_modifier=self._prompt, checkpointer=self._checkpointer)
         self._idx = idx
         print(f"Active model: {name}")
 
