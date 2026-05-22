@@ -57,7 +57,7 @@ pio.templates.default = "syb"
 
 # ── Semantic table index ──────────────────────────────────────────────────────
 def _make_embed_model():
-    for name in ["gemini-embedding-001", "gemini-embedding-2-preview", "models/embedding-001"]:
+    for name in ["models/gemini-embedding-001", "models/text-embedding-004", "text-embedding-004"]:
         try:
             m = GoogleGenerativeAIEmbeddings(model=name, google_api_key=os.getenv("GOOGLE_API_KEY"))
             m.embed_query("test")
